@@ -7,9 +7,9 @@
     {
       "matches": ["*://*/*"],
       "js": ["content.js"],
-      "run_at": "document-start",
-      "grant": "unsafeWindow"
+      "run_at": "document_start"
     }
   ],
-  "permissions": ["scripting"]
+  "permissions": ["scripting", "activeTab"],
+  "host_permissions": ["*://*/*"]
 }
