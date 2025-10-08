@@ -1,13 +1,14 @@
 {
   "manifest_version": 3,
-  "name": "AnimeVietsub AdBlock Extension",
-  "version": "1.0",
-  "description": "Ẩn các quảng cáo bằng CSS và JS",
+  "name": "🌿 AnimeVietsub AdBlock",
+  "version": "2.0",
+  "description": "Chặn quảng cáo + popup redirect AnimeVietsub",
   "content_scripts": [
     {
       "matches": ["*://*/*"],
       "js": ["content.js"],
-      "run_at": "document_idle"
+      "run_at": "document-start",
+      "grant": "unsafeWindow"
     }
   ],
   "permissions": ["scripting"]
