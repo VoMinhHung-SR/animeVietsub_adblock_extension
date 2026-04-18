@@ -1,44 +1,42 @@
-# 🧩 AnimeVietsub AdBlock Extension v2.0
+# AnimeVietsub AdBlock (Chrome MV3 + Tampermonkey)
 
-## 🔰 Mục đích
-Tiện ích mở rộng trình duyệt (Chrome Extension) giúp **ẩn quảng cáo tĩnh**, **chặn popup chuyển trang** và **ngăn hành vi click lừa đảo** từ các trang xem phim `animevietsub.*`.
+## Mục đích
 
----
+Tiện ích mở rộng và script Tampermonkey giúp **giảm quảng cáo tĩnh**, **hạn chế popup / chuyển tab**, và **xử lý overlay pause-ad** trên các trang có hostname dạng `animevietsub.*`, cùng logic trong iframe player `storage.googleapiscdn.com` khi được inject.
 
-## 🆕 Version 2.0 - Cải tiến chính
+## Cấu trúc nguồn (quan trọng)
 
-### 🌐 **Mở rộng phạm vi**
-- **Trước:** Chỉ hoạt động trên `animevietsub.lol`
-- **Sau:** Hỗ trợ **tất cả domain** animevietsub (`animevietsub.tv`, `animevietsub.net`, etc.)
+| File / thư mục | Vai trò |
+|----------------|---------|
+| `src/adblock-core.js` | **Nguồn logic duy nhất** — sửa file này rồi build. |
+| `src/tampermonkey-header.txt` | Khối metadata `==UserScript==` cho Tampermonkey. |
+| `scripts/build.mjs` | Ghép core + header → `content.js`, `tampermonkey.js`. |
+| `content.js` / `tampermonkey.js` | **File sinh ra** (có dòng comment “Generated…” ở đầu `content.js`). |
+| `page-world-hook.js` | Chạy trong **MAIN world** (load qua `src`), noop `open` / `location` + vô hiệu popunder globals — tránh CSP chặn inline trên site strict. |
+| `manifest.json` | MV3: `content_scripts`, `web_accessible_resources`, icon `src/faviconV2.png`. |
+| `ads.js` | Bản tham chiếu logic popunder trên site (không load trong extension). |
 
-### ⚡ **Tối ưu hiệu suất**
-- Kiểm tra domain trước khi thực thi → giảm overhead
-- Code structure cải thiện với IIFE wrapper
-- Early return cho các trang không liên quan
-
-### 🏗️ **Kiến trúc mới**
-- Wrapping code trong `(function() { 'use strict'; ... })()`
-- Domain validation thông minh với regex pattern
-- Manifest v3 với permissions tối ưu
-
----
-
-## 🧪 Tính năng chính
-
-- ✅ Tự động ẩn các phần tử quảng cáo (`div`, `iframe`, `banner`, ...)
-- ✅ Theo dõi DOM động và ẩn quảng cáo render trễ
-- ✅ Chặn popup mở tab mới (`window.open`)
-- ✅ Ngăn script như `createPopupAndRedirect()` bị gọi
-- ✅ Vô hiệu hóa `addEventListener` nếu chứa hành vi redirect
-- ✅ Cookie-based popup protection
-- ✅ MutationObserver với debounce tối ưu
-
----
-
-## 📂 Cấu trúc file
+## Build
 
 ```bash
-HIDE_ADS_EXTENSION/
-├── manifest.json    # Manifest v3 config
-├── content.js       # Main ad-blocking logic
-└── README.md        # Documentation
+npm run build
+```
+
+Sau đó reload extension trong `chrome://extensions` (hoặc Brave tương đương). Cập nhật Tampermonkey: dán/ghi đè nội dung `tampermonkey.js` đã build.
+
+## Tính năng tóm tắt (extension)
+
+- Lọc domain `animevietsub.*` trước khi chạy logic nặng.
+- Ẩn / gỡ node theo danh sách selector; `MutationObserver` + debounce; tránh xóa nhầm iframe player (`mustNotRemove`).
+- Inject **external** `page-world-hook.js` (không inline) để tương thích CSP.
+- Nhánh **player** (`storage.googleapiscdn.com`): chặn nút “Đóng quảng cáo” lừa, pipeline ẩn overlay pause-ad, nút “Tiếp tục”, lắng nghe `pause` / burst poll.
+
+## Tampermonkey
+
+- Header trong `src/tampermonkey-header.txt` (`@grant none`).
+- Cùng core với extension; sau khi sửa core nhớ `npm run build` và cập nhật script trong TM.
+
+## Ghi chú
+
+- Cursor / Simple Browser **không** tự load extension unpacked; thử trên Chrome/Brave đã bật extension.
+- Một số site đổi DOM thường xuyên — nếu overlay pause đổi cấu trúc, có thể cần điều chỉnh thêm trong `src/adblock-core.js` (hàm player).
