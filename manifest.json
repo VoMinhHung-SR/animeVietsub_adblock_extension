@@ -3,13 +3,39 @@
   "name": "🌿 AnimeVietsub AdBlock",
   "version": "2.1",
   "description": "Chặn quảng cáo + popup redirect AnimeVietsub",
+  "icons": {
+    "16": "src/faviconV2.png",
+    "32": "src/faviconV2.png",
+    "48": "src/faviconV2.png",
+    "128": "src/faviconV2.png"
+  },
+  "action": {
+    "default_icon": {
+      "16": "src/faviconV2.png",
+      "32": "src/faviconV2.png",
+      "48": "src/faviconV2.png"
+    },
+    "default_title": "AnimeVietsub AdBlock"
+  },
   "content_scripts": [
     {
       "matches": ["*://*/*"],
+      "exclude_matches": ["*://storage.googleapiscdn.com/*"],
       "js": ["content.js"],
       "run_at": "document_start"
+    },
+    {
+      "matches": ["*://storage.googleapiscdn.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
     }
   ],
   "permissions": ["scripting", "activeTab"],
-  "host_permissions": ["*://*/*"]
+  "host_permissions": ["*://*/*"],
+  "web_accessible_resources": [
+    {
+      "resources": ["page-world-hook.js"],
+      "matches": ["<all_urls>"]
+    }
+  ]
 }

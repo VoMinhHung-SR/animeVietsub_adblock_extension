@@ -1,14 +1,3 @@
-// ==UserScript==
-// @name         🌿 AnimeVietsub AdBlock
-// @namespace    http://tampermonkey.net/
-// @version      2.3
-// @description  Chặn quảng cáo + popup redirect AnimeVietsub (linh hoạt, không leak, không hardcode URL)
-// @author       Võ Minh Hùng
-// @match        *://*/*
-// @run-at       document-start
-// @grant        none
-// ==/UserScript==
-
 (() => {
   'use strict';
 
@@ -621,4 +610,3 @@
 
   window.addEventListener('pagehide', cleanup, { capture: true });
 })();
-
