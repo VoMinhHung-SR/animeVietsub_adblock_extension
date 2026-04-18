@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "🌿 AnimeVietsub AdBlock",
-  "version": "2.0",
+  "version": "2.1",
   "description": "Chặn quảng cáo + popup redirect AnimeVietsub",
   "content_scripts": [
     {

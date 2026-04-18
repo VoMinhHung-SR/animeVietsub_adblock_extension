@@ -1,9 +1,20 @@
+// ==UserScript==
+// @name         🌿 AnimeVietsub AdBlock
+// @namespace    http://tampermonkey.net/
+// @version      2.2
+// @description  Chặn quảng cáo + popup redirect AnimeVietsub (linh hoạt, không leak, không hardcode URL)
+// @author       Võ Minh Hùng
+// @match        *://*/*
+// @run-at       document-start
+// @grant        none
+// ==/UserScript==
+
 (() => {
   'use strict';
 
   if (!/(animevietsub)\./.test(location.hostname)) return;
 
-  // Keep in sync: tampermonkey.js uses the same IIFE below the ==UserScript== header.
+  // Keep in sync: content.js (extension) — same IIFE.
 
   const CONFIG = {
     adCheckInterval: 300,
