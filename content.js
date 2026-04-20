@@ -327,23 +327,30 @@
   const CONFIG = {
     adCheckInterval: 300,
     verbose: true,
-    popupCookieName: 'popupOpened',
-    popupCookieTTL: 30 * 60 * 1000,
   };
 
   const log = (msg, icon = '✅') => CONFIG.verbose && console.log(`${icon} [AVS] ${msg}`);
 
-  const Cookie = {
-    set: (name, value, ttlMs) => {
-      const expires = new Date(Date.now() + ttlMs).toUTCString();
-      document.cookie = `${name}=${value}; expires=${expires}; path=/`;
-    },
-    get: name => {
-      const value = `; ${document.cookie}`;
-      const parts = value.split(`; ${name}=`);
-      if (parts.length === 2) return parts.pop().split(';').shift();
-    },
-  };
+  const AD_REDIRECT_HOST_RE =
+    /(^|\.)((bom88|man88)\.(vin|com)|doubleclick\.net|googlesyndication\.com|adserver\.)$/i;
+  const AD_REDIRECT_CODE_RE =
+    /(createPopupAndRedirect|markPopupAsOpened|window\.open\s*\(|location\.(assign|replace)\s*\()/i;
+
+  function isLikelyAdUrl(rawUrl) {
+    if (!rawUrl || typeof rawUrl !== 'string') return false;
+    const url = rawUrl.trim();
+    if (!url || url === '#' || /^\/(?!\/)/.test(url)) return false;
+    try {
+      const resolved = new URL(url, location.href);
+      const host = resolved.hostname || '';
+      if (AD_REDIRECT_HOST_RE.test(host)) return true;
+      return /(^|[./-])(ads?|adclick|popunder|popup)([./-]|$)/i.test(
+        `${resolved.pathname}${resolved.search}`
+      );
+    } catch (_) {
+      return false;
+    }
+  }
 
   /**
    * Page MAIN world: noop open/location + poll-noop popunder globals (see ads.js).
@@ -384,7 +391,7 @@
       '(function(){',
       '"use strict";',
       'function n(){return null;}',
-      'try{window.open=n;var l=window.location;if(l){l.assign=n;l.replace=n;}}catch(e){}',
+      'try{window.open=n;var l=window.location;if(l){var oa=l.assign&&l.assign.bind(l);var or=l.replace&&l.replace.bind(l);if(oa){l.assign=function(u){if(!u||/((bom88|man88)\\.(vin|com)|doubleclick\\.net|googlesyndication\\.com|adserver\\.)/i.test(String(u))){return null;}return oa(u);};}if(or){l.replace=function(u){if(!u||/((bom88|man88)\\.(vin|com)|doubleclick\\.net|googlesyndication\\.com|adserver\\.)/i.test(String(u))){return null;}return or(u);};}}}catch(e){}',
       'try{',
       'var poll=setInterval(function(){',
       'try{',
@@ -403,26 +410,51 @@
     log('Page-world hook injected (inline fallback — may be blocked by strict CSP) 🔗');
   }
 
-  function stripGlobalOnclick() {
-    document.body?.removeAttribute('onclick');
-    document.documentElement?.removeAttribute('onclick');
+  function stripGlobalOnclickIfAdTrap() {
+    for (const el of [document.body, document.documentElement]) {
+      const inline = el?.getAttribute?.('onclick') || '';
+      if (AD_REDIRECT_CODE_RE.test(inline)) {
+        el.removeAttribute('onclick');
+      }
+    }
   }
 
-  function blockPopupCaptureListeners() {
-    const stopEvent = e => {
-      const isAnchor = e.target.closest('a');
-      if (!isAnchor) e.preventDefault();
-      e.stopImmediatePropagation();
-    };
-    for (const evt of ['click', 'mousedown', 'mouseup']) {
-      window.addEventListener(evt, stopEvent, { capture: true, passive: false });
+  function shouldBlockClickTarget(target) {
+    if (!target) return false;
+    const inline = target.getAttribute?.('onclick') || '';
+    if (inline && AD_REDIRECT_CODE_RE.test(inline)) return true;
+
+    const href = target.getAttribute?.('href') || '';
+    if (href && /^javascript:/i.test(href) && AD_REDIRECT_CODE_RE.test(href)) return true;
+    if (isLikelyAdUrl(href)) return true;
+
+    for (const attr of ['data-href', 'data-url', 'data-target']) {
+      const maybe = target.getAttribute?.(attr);
+      if (isLikelyAdUrl(maybe)) return true;
     }
-    log('Popup redirect capture listeners on 🚫');
+    return false;
+  }
+
+  function blockAdRedirectClicks() {
+    document.addEventListener(
+      'click',
+      e => {
+        const hit = e.target?.closest?.(
+          'a, button, [role="button"], [onclick], [data-href], [data-url], [data-target]'
+        );
+        if (!hit || !shouldBlockClickTarget(hit)) return;
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        log('Blocked ad redirect click 💣');
+      },
+      { capture: true, passive: false }
+    );
+    log('Targeted popup/redirect click guard on 🚫');
   }
 
   function blockPopupFunctions() {
-    stripGlobalOnclick();
-    blockPopupCaptureListeners();
+    stripGlobalOnclickIfAdTrap();
+    blockAdRedirectClicks();
   }
 
   const adSelectors = [
@@ -561,31 +593,6 @@
     log('MutationObserver (ads + preload) started 🔁');
   }
 
-  function blockAnimeVietsubClickPopup() {
-    const whitelist = [
-      '#pc-catfixx',
-      '#mobile-catfish-top',
-      '#mobile-catfixx',
-      '.banner-container',
-      '.header-ads-mobile',
-    ];
-    document.addEventListener(
-      'click',
-      e => {
-        const target = e.target;
-        const hasCookie = Cookie.get(CONFIG.popupCookieName) === 'true';
-        const allowed = whitelist.some(sel => target.closest(sel));
-        if (!allowed && !hasCookie) {
-          Cookie.set(CONFIG.popupCookieName, 'true', CONFIG.popupCookieTTL);
-          e.stopImmediatePropagation();
-          e.preventDefault();
-          log('Blocked site popup trigger 💣');
-        }
-      },
-      { capture: true, passive: false }
-    );
-  }
-
   function cleanup() {
     clearTimeout(hideAdsDebounceTimer);
     hideAdsDebounceTimer = 0;
@@ -598,7 +605,6 @@
     runPreloadPassOnce();
     startDomObserver();
     blockPopupFunctions();
-    blockAnimeVietsubClickPopup();
     log('AdBlock fully initialized ✅');
   }
 
